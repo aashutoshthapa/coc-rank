@@ -1,4 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { inject } from "@vercel/analytics"
+inject()
 
 // Supabase setup
 const supabaseUrl = 'https://pikwjrgfrqxrklvswvzg.supabase.co';
@@ -61,7 +63,7 @@ function setCache(key, data) {
   localStorage.setItem(key, item);
 }
 
-// Disable/Enable buttons during load (with loading spinner UX)
+// Disable/Enable controls and show loading spinner
 function setControlsDisabled(disabled) {
   loadBtn.disabled = disabled;
   tagSearchBtn.disabled = disabled;
@@ -69,7 +71,7 @@ function setControlsDisabled(disabled) {
   monthSelect.disabled = disabled;
   tagInput.disabled = disabled;
   
-  // Toggle loading class for spinner (assuming CSS is set up)
+  // Toggle loading class for spinner
   loadBtn.classList.toggle('loading', disabled);
   tagSearchBtn.classList.toggle('loading', disabled);
 }
@@ -101,6 +103,7 @@ async function fetchSeasonData(season) {
   const cachedData = getCache(cacheKey);
 
   if (cachedData) {
+    // If cached, update status immediately and return data
     statusEl.textContent = `✅ Showing ${cachedData.length} players for ${season} (from cache)`;
     return cachedData;
   }
@@ -127,6 +130,7 @@ async function fetchTagData(tag) {
   const cachedData = getCache(cacheKey);
 
   if (cachedData) {
+    // If cached, update status immediately and return data
     tagStatusEl.textContent = `✅ Found ${cachedData.length} appearance(s) for ${tag} (from cache)`;
     return cachedData;
   }
@@ -149,7 +153,7 @@ async function fetchTagData(tag) {
 }
 
 // --- Rendering ---
-// (These remain unchanged)
+
 function renderSeason(players) {
   resultsBody.innerHTML = players.map(p => `
     <tr>
@@ -176,7 +180,7 @@ function renderTagAppearances(players) {
 }
 
 // --- Clear & Hide Functions ---
-// (These remain unchanged)
+
 function clearSeasonResults() {
   resultsBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">Select a year and month, then click "Load Season".</td></tr>';
   statusEl.textContent = '';
@@ -195,7 +199,7 @@ async function loadSeason() {
   clearTagResults();
   const season = `${yearSelect.value}-${monthSelect.value}`;
   
-  // Set initial status unless data is coming from cache
+  // Set initial loading status only if cache isn't available
   if (!getCache(`season-${season}`)) {
     statusEl.textContent = `Loading ${season}...`;
   }
@@ -205,7 +209,7 @@ async function loadSeason() {
   const players = await fetchSeasonData(season);
   setControlsDisabled(false);
 
-  // If status message already includes '(from cache)', don't overwrite it here
+  // Update status and render if it wasn't already updated by the cache hit
   if (!statusEl.textContent.includes('(from cache)')) {
       if (!players.length) {
           statusEl.textContent = `🚫 No data found for ${season}.`;
@@ -230,7 +234,7 @@ async function searchTag() {
     return; 
   }
   
-  // Set initial status unless data is coming from cache
+  // Set initial loading status only if cache isn't available
   if (!getCache(`tag-${tag}`)) {
       tagStatusEl.textContent = `Searching ${tag}...`;
   }
@@ -240,7 +244,7 @@ async function searchTag() {
   const data = await fetchTagData(tag);
   setControlsDisabled(false);
 
-  // If status message already includes '(from cache)', don't overwrite it here
+  // Update status and render if it wasn't already updated by the cache hit
   if (!tagStatusEl.textContent.includes('(from cache)')) {
       if (!data.length) {
           tagStatusEl.textContent = `❌ No season appearances found for ${tag}.`;
@@ -272,6 +276,8 @@ function init() {
   // Set initial empty states with instructions
   clearSeasonResults();
   clearTagResults();
+
+  // IMPORTANT: No auto-load here. User must click the button.
 }
 
 init();
