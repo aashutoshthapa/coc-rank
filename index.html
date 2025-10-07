@@ -1,48 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Clash of Clans – Legends League Top Players</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8">
+  <title>Clash of Clans Rank Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      padding: 20px 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 800px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    select, input, button {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    button {
+      background: #0077ff;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
+    button:hover {
+      background: #005fcc;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background: #0077ff;
+      color: white;
+    }
+    #status, #tagStatus {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-  <main class="container">
-    <header class="header">
-      <h1>Clash of Clans – Legends League Top Players</h1>
-      <p class="subtitle">Select a season to view ranks 1–1000 or search a player tag.</p>
-    </header>
+  <div class="container">
+    <h1>Clash of Clans Rank Tracker</h1>
 
-    <section class="controls">
-      <div class="control-group">
-        <label for="yearSelect">Year</label>
-        <select id="yearSelect"></select>
-      </div>
-      <div class="control-group">
-        <label for="monthSelect">Month</label>
-        <select id="monthSelect"></select>
-      </div>
-      <button id="loadBtn">Load Rankings</button>
-    </section>
- <h4> OR</h4>
-    <section class="controls">
-      <div class="control-group">
-        <label for="tagInput">Player Tag</label>
-        <input id="tagInput" type="text" placeholder="#ABC123" />
-      </div>
-      <button id="tagSearchBtn">Search Tag History</button>
-    </section>
-
-    <div id="status" class="status" aria-live="polite"></div>
-    <div id="tagStatus" class="status" aria-live="polite"></div>
-
-    <div class="table-wrapper">
+    <div>
+      <h3>Season Leaderboard</h3>
+      <label for="yearSelect">Year</label>
+      <select id="yearSelect"></select>
+      <label for="monthSelect">Month</label>
+      <select id="monthSelect"></select>
+      <button id="loadBtn">Load Season</button>
+      <div id="status"></div>
       <table id="resultsTable">
         <thead>
           <tr>
             <th>Rank</th>
-            <th>Player</th>
-            <th>Player Tag</th>
+            <th>Name</th>
+            <th>Tag</th>
             <th>Clan</th>
             <th>Clan Tag</th>
           </tr>
@@ -51,14 +89,20 @@
       </table>
     </div>
 
-    <div class="table-wrapper">
+    <hr style="margin:20px 0;">
+
+    <div>
+      <h3>Search Player by Tag</h3>
+      <input type="text" id="tagInput" placeholder="Enter player tag (e.g., #ABC123)">
+      <button id="tagSearchBtn">Search Tag</button>
+      <div id="tagStatus"></div>
       <table id="tagResultsTable">
         <thead>
           <tr>
             <th>Season</th>
             <th>Rank</th>
-            <th>Player</th>
-            <th>Player Tag</th>
+            <th>Name</th>
+            <th>Tag</th>
             <th>Clan</th>
             <th>Clan Tag</th>
           </tr>
@@ -66,8 +110,11 @@
         <tbody id="tagResultsBody"></tbody>
       </table>
     </div>
-  </main>
+  </div>
 
-  <script src="app.js" defer></script>
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+  <!-- App JS -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>

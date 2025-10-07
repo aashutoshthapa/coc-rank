@@ -1,29 +1,35 @@
-'use strict';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-const LOCAL_DATA_DIR = './json_files';
+// Supabase setup
+const supabaseUrl = 'https://pikwjrgfrqxrklvswvzg.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpa3dqcmdmcnF4cmtsdnN3dnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDU3NDksImV4cCI6MjA3NTQyMTc0OX0.CLhGcngTqMYb74DujW_U4VnDAH50HeVd6Fq8kQwyHq4';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
+// DOM Elements
 const yearSelect = document.getElementById('yearSelect');
 const monthSelect = document.getElementById('monthSelect');
 const loadBtn = document.getElementById('loadBtn');
 const statusEl = document.getElementById('status');
 const resultsBody = document.getElementById('resultsBody');
-const resultsTable = document.getElementById('resultsTable'); // season table
+const resultsTable = document.getElementById('resultsTable');
+
 const tagInput = document.getElementById('tagInput');
 const tagSearchBtn = document.getElementById('tagSearchBtn');
 const tagStatusEl = document.getElementById('tagStatus');
 const tagResultsBody = document.getElementById('tagResultsBody');
-const tagResultsTable = document.getElementById('tagResultsTable'); // tag history table
+const tagResultsTable = document.getElementById('tagResultsTable');
 
 // Escape HTML
 function escapeHtml(str) {
-  return String(str).replace(/&/g,'&amp;')
-                    .replace(/</g,'&lt;')
-                    .replace(/>/g,'&gt;')
-                    .replace(/"/g,'&quot;')
-                    .replace(/'/g,'&#39;');
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
 }
 
-// Populate dropdowns
+// Populate year/month dropdowns
 function populateYearSelect() {
   const currentYear = new Date().getFullYear();
   for (let y = currentYear; y >= 2016; y--) {
@@ -32,27 +38,28 @@ function populateYearSelect() {
     yearSelect.appendChild(opt);
   }
 }
-
 function populateMonthSelect() {
-  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  monthNames.forEach((name, i) => {
+  const monthNames = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+  monthNames.forEach(m => {
     const opt = document.createElement('option');
-    const mm = String(i+1).padStart(2,'0');
-    opt.value = mm; opt.textContent = `${name} (${mm})`;
+    opt.value = m; opt.textContent = m;
     monthSelect.appendChild(opt);
   });
 }
 
-// Fetch season data
+// Fetch season data from Supabase
 async function fetchSeasonData(season) {
-  try {
-    const resp = await fetch(`${LOCAL_DATA_DIR}/${season}.json`);
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    return data.items || [];
-  } catch {
+  const { data, error } = await supabase
+    .from('players')
+    .select('*')
+    .eq('season', season)
+    .order('rank', { ascending: true });
+
+  if (error) {
+    console.error(error);
     return [];
   }
+  return data || [];
 }
 
 // Render season leaderboard
@@ -62,48 +69,42 @@ function renderSeason(players) {
       <td>${p.rank}</td>
       <td>${escapeHtml(p.name)}</td>
       <td>${p.tag}</td>
-      <td>${p.clan?.name || '-'}</td>
-      <td>${p.clan?.tag || '-'}</td>
-    </tr>`).join('');
+      <td>${p.clan_name || '-'}</td>
+      <td>${p.clan_tag || '-'}</td>
+    </tr>
+  `).join('');
 }
 
 // Render tag appearances
-function renderTagAppearances(appearances) {
-  tagResultsBody.innerHTML = appearances.map(a => `
+function renderTagAppearances(players) {
+  tagResultsBody.innerHTML = players.map(p => `
     <tr>
-      <td>${a.season}</td>
-      <td>${a.rank}</td>
-      <td>${escapeHtml(a.name)}</td>
-      <td>${a.tag}</td>
-      <td>${a.clan?.name || '-'}</td>
-      <td>${a.clan?.tag || '-'}</td>
-    </tr>`).join('');
+      <td>${p.season}</td>
+      <td>${p.rank}</td>
+      <td>${escapeHtml(p.name)}</td>
+      <td>${p.tag}</td>
+      <td>${p.clan_name || '-'}</td>
+      <td>${p.clan_tag || '-'}</td>
+    </tr>
+  `).join('');
 }
 
-// Normalize player tag
-function normalizeTag(input) {
-  let tag = (input || '').trim().toUpperCase();
-  return tag.startsWith('#') ? tag : `#${tag}`;
-}
-
-// Clear/hide sections
+// Clear results
 function clearSeasonResults() {
   resultsBody.innerHTML = '';
   statusEl.textContent = '';
   resultsTable.style.display = 'none';
 }
-
 function clearTagResults() {
   tagResultsBody.innerHTML = '';
   tagStatusEl.textContent = '';
   tagResultsTable.style.display = 'none';
 }
 
-// Load season leaderboard
+// Load season
 async function loadSeason() {
-  clearTagResults();             // hide tag table
-  resultsTable.style.display = ''; // show season table
-
+  clearTagResults();
+  resultsTable.style.display = '';
   const season = `${yearSelect.value}-${monthSelect.value}`;
   statusEl.textContent = `Loading ${season}…`;
 
@@ -114,44 +115,46 @@ async function loadSeason() {
   renderSeason(players);
 }
 
-// Search for player tag
+// Search by tag
 async function searchTag() {
-  clearSeasonResults();          // hide season table
-  tagResultsTable.style.display = ''; // show tag table
-
-  const tag = normalizeTag(tagInput.value);
+  clearSeasonResults();
+  tagResultsTable.style.display = '';
+  const tag = (tagInput.value || '').trim().toUpperCase();
   if (!tag) { tagStatusEl.textContent = 'Enter valid tag'; return; }
   tagStatusEl.textContent = `Searching ${tag}…`;
 
-  const seasons = [];
-  for (let y = 2016; y <= new Date().getFullYear(); y++) {
-    for (let m = 1; m <= 12; m++) {
-      seasons.push(`${y}-${String(m).padStart(2,'0')}`);
-    }
+  const { data, error } = await supabase
+    .from('players')
+    .select('*')
+    .eq('tag', tag)
+    .order('season', { ascending: true });
+
+  if (error) {
+    console.error(error);
+    tagStatusEl.textContent = 'Error fetching data';
+    return;
   }
 
-  const appearances = [];
-  for (const season of seasons) {
-    const players = await fetchSeasonData(season);
-    const player = players.find(p => p.tag.toUpperCase() === tag);
-    if (player) appearances.push({ season, ...player });
-  }
+  renderTagAppearances(data);
+  tagStatusEl.textContent = `Found ${data.length} appearance(s) for ${tag}`;
+}
 
-  renderTagAppearances(appearances);
-  tagStatusEl.textContent = `Found ${appearances.length} appearance(s) for ${tag}`;
+// Normalize tag (optional)
+function normalizeTag(input) {
+  let tag = (input || '').trim().toUpperCase();
+  return tag.startsWith('#') ? tag : `#${tag}`;
 }
 
 // Initialize
 populateYearSelect();
 populateMonthSelect();
-
 loadBtn.addEventListener('click', loadSeason);
 tagSearchBtn.addEventListener('click', searchTag);
 tagInput.addEventListener('keydown', e => { if(e.key==='Enter') searchTag(); });
 
 // Auto-load previous month
 const now = new Date();
-const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+const prevMonth = new Date(now.getFullYear(), now.getMonth()-1,1);
 yearSelect.value = prevMonth.getFullYear();
 monthSelect.value = String(prevMonth.getMonth()+1).padStart(2,'0');
 loadSeason();
