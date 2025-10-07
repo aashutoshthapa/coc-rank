@@ -1,5 +1,6 @@
 'use strict';
-const LOCAL_DATA_DIR = '/json_files';
+
+const LOCAL_DATA_DIR = './json_files';
 
 const yearSelect = document.getElementById('yearSelect');
 const monthSelect = document.getElementById('monthSelect');
