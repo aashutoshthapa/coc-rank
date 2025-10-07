@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clash of Clans – Legends League Top Players</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>Clash of Clans – Legends League Top Players</h1>
+      <p class="subtitle">Select a season to view ranks 1–1000 or search a player tag.</p>
+    </header>
+
+    <section class="controls">
+      <div class="control-group">
+        <label for="yearSelect">Year</label>
+        <select id="yearSelect"></select>
+      </div>
+      <div class="control-group">
+        <label for="monthSelect">Month</label>
+        <select id="monthSelect"></select>
+      </div>
+      <button id="loadBtn">Load Rankings</button>
+    </section>
+ <h4> OR</h4>
+    <section class="controls">
+      <div class="control-group">
+        <label for="tagInput">Player Tag</label>
+        <input id="tagInput" type="text" placeholder="#ABC123" />
+      </div>
+      <button id="tagSearchBtn">Search Tag History</button>
+    </section>
+
+    <div id="status" class="status" aria-live="polite"></div>
+    <div id="tagStatus" class="status" aria-live="polite"></div>
+
+    <div class="table-wrapper">
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Player</th>
+            <th>Player Tag</th>
+            <th>Clan</th>
+            <th>Clan Tag</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="table-wrapper">
+      <table id="tagResultsTable">
+        <thead>
+          <tr>
+            <th>Season</th>
+            <th>Rank</th>
+            <th>Player</th>
+            <th>Player Tag</th>
+            <th>Clan</th>
+            <th>Clan Tag</th>
+          </tr>
+        </thead>
+        <tbody id="tagResultsBody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
