@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 
 # === CONFIGURATION ===
-API_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiIsImtpZCI6IjI4YTMxOGY3LTAwMDAtYTFlYi03ZmExLTJjNzQzM2M2Y2NhNSJ9.eyJpc3MiOiJzdXBlcmNlbGwiLCJhdWQiOiJzdXBlcmNlbGw6Z2FtZWFwaSIsImp0aSI6IjkzZTc3YTE2LWViYjctNGZiNi05MmEzLTJkOTViOTIzYmMzNiIsImlhdCI6MTc1OTg1MjUwOCwic3ViIjoiZGV2ZWxvcGVyL2QyMzllMDZkLTk0MWMtOTg1Yi0wZjQ0LWY5NWRlYzFlNmU3MSIsInNjb3BlcyI6WyJjbGFzaCJdLCJsaW1pdHMiOlt7InRpZXIiOiJkZXZlbG9wZXIvc2lsdmVyIiwidHlwZSI6InRocm90dGxpbmcifSx7ImNpZHJzIjpbIjI3LjM0LjY1LjE1MiJdLCJ0eXBlIjoiY2xpZW50In1dfQ.Sx7iaMtc6mf7GOuiAfJNMdMb2OdjzvzYmJbAPZ240kTtcQaxSVrfYLGcOmQzKAY5VPo3VpbDelhc0_wF_vvSqQ"  # replace with your Clash of Clans API key
+API_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiIsImtpZCI6IjI4YTMxOGY3LTAwMDAtYTFlYi03ZmExLTJjNzQzM2M2Y2NhNSJ9.eyJpc3MiOiJzdXBlcmNlbGwiLCJhdWQiOiJzdXBlcmNlbGw6Z2FtZWFwaSIsImp0aSI6Ijc4YWM0NDAzLTEyZmMtNDc2Yy05ZWE3LTE3MGNkNjAwNmVmMCIsImlhdCI6MTc1OTg1NzY3Nywic3ViIjoiZGV2ZWxvcGVyL2QyMzllMDZkLTk0MWMtOTg1Yi0wZjQ0LWY5NWRlYzFlNmU3MSIsInNjb3BlcyI6WyJjbGFzaCJdLCJsaW1pdHMiOlt7InRpZXIiOiJkZXZlbG9wZXIvc2lsdmVyIiwidHlwZSI6InRocm90dGxpbmcifSx7ImNpZHJzIjpbIjExMS4xMTkuNDguMTEwIl0sInR5cGUiOiJjbGllbnQifV19.YnckOUQ-CzSZcUDsBtgECBdeWw4G_hh-2_P4ms-qTM4H80aCCrUIJhH2CVNMmhFphUVQOGfwBDa3ezhCqfsmvA"  # replace with your Clash of Clans API key
 LEAGUE_ID = "29000022"
 LIMIT = 1000
 
@@ -17,7 +17,7 @@ OUTPUT_FOLDER = '/Users/aashutoshthapa/Desktop/coc rank/json_files'
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # --- Build month range ---
-start_date = datetime(2022, 12, 1)
+start_date = datetime(2023, 1, 1)
 end_date = datetime(2025, 9, 1)
 current = start_date
 

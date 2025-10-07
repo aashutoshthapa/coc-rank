@@ -11,13 +11,18 @@ const monthSelect = document.getElementById('monthSelect');
 const loadBtn = document.getElementById('loadBtn');
 const statusEl = document.getElementById('status');
 const resultsBody = document.getElementById('resultsBody');
-const resultsTable = document.getElementById('resultsTable');
+const resultsTableWrapper = resultsBody.closest('.table-wrapper'); 
 
 const tagInput = document.getElementById('tagInput');
 const tagSearchBtn = document.getElementById('tagSearchBtn');
 const tagStatusEl = document.getElementById('tagStatus');
 const tagResultsBody = document.getElementById('tagResultsBody');
-const tagResultsTable = document.getElementById('tagResultsTable');
+const tagResultsTableWrapper = tagResultsBody.closest('.table-wrapper'); 
+
+// Caching constant (5 minutes)
+const CACHE_LIFETIME_MS = 300000; 
+
+// --- Utility Functions ---
 
 // Escape HTML
 function escapeHtml(str) {
@@ -29,7 +34,48 @@ function escapeHtml(str) {
     .replace(/'/g,'&#39;');
 }
 
-// Populate year/month dropdowns
+// Get cached data if it hasn't expired
+function getCache(key) {
+  const item = localStorage.getItem(key);
+  if (!item) return null;
+
+  try {
+    const { timestamp, data } = JSON.parse(item);
+    // Check if the cache is older than CACHE_LIFETIME_MS
+    if (Date.now() - timestamp < CACHE_LIFETIME_MS) {
+      return data;
+    }
+  } catch (e) {
+    console.error("Error parsing cache:", e);
+    localStorage.removeItem(key); // Clear corrupted cache
+  }
+  return null;
+}
+
+// Store data in cache with a timestamp
+function setCache(key, data) {
+  const item = JSON.stringify({
+    timestamp: Date.now(),
+    data: data,
+  });
+  localStorage.setItem(key, item);
+}
+
+// Disable/Enable buttons during load (with loading spinner UX)
+function setControlsDisabled(disabled) {
+  loadBtn.disabled = disabled;
+  tagSearchBtn.disabled = disabled;
+  yearSelect.disabled = disabled;
+  monthSelect.disabled = disabled;
+  tagInput.disabled = disabled;
+  
+  // Toggle loading class for spinner (assuming CSS is set up)
+  loadBtn.classList.toggle('loading', disabled);
+  tagSearchBtn.classList.toggle('loading', disabled);
+}
+
+// --- Dropdown Population ---
+
 function populateYearSelect() {
   const currentYear = new Date().getFullYear();
   for (let y = currentYear; y >= 2016; y--) {
@@ -38,6 +84,7 @@ function populateYearSelect() {
     yearSelect.appendChild(opt);
   }
 }
+
 function populateMonthSelect() {
   const monthNames = ['01','02','03','04','05','06','07','08','09','10','11','12'];
   monthNames.forEach(m => {
@@ -47,35 +94,74 @@ function populateMonthSelect() {
   });
 }
 
-// Fetch season data from Supabase
+// --- Data Fetching (CONSOLIDATED & IMPROVED) ---
+
 async function fetchSeasonData(season) {
+  const cacheKey = `season-${season}`;
+  const cachedData = getCache(cacheKey);
+
+  if (cachedData) {
+    statusEl.textContent = `✅ Showing ${cachedData.length} players for ${season} (from cache)`;
+    return cachedData;
+  }
+  
   const { data, error } = await supabase
     .from('players')
     .select('*')
     .eq('season', season)
-    .order('rank', { ascending: true });
+    .order('rank', { ascending: true })
+    .limit(1000); // Added limit for safety
 
   if (error) {
     console.error(error);
+    statusEl.textContent = 'Error fetching data. Check console.';
     return [];
   }
+  
+  if (data) setCache(cacheKey, data); // Store successful fetch
   return data || [];
 }
 
-// Render season leaderboard
+async function fetchTagData(tag) {
+  const cacheKey = `tag-${tag}`;
+  const cachedData = getCache(cacheKey);
+
+  if (cachedData) {
+    tagStatusEl.textContent = `✅ Found ${cachedData.length} appearance(s) for ${tag} (from cache)`;
+    return cachedData;
+  }
+  
+  const { data, error } = await supabase
+    .from('players')
+    .select('*')
+    .eq('tag', tag)
+    .order('season', { ascending: true })
+    .limit(1000); // Added limit for safety
+
+  if (error) {
+    console.error(error);
+    tagStatusEl.textContent = 'Error fetching data. Check console.';
+    return [];
+  }
+  
+  if (data) setCache(cacheKey, data); // Store successful fetch
+  return data || [];
+}
+
+// --- Rendering ---
+// (These remain unchanged)
 function renderSeason(players) {
   resultsBody.innerHTML = players.map(p => `
     <tr>
       <td>${p.rank}</td>
       <td>${escapeHtml(p.name)}</td>
       <td>${p.tag}</td>
-      <td>${p.clan_name || '-'}</td>
+      <td>${p.clan_name ? escapeHtml(p.clan_name) : '-'}</td>
       <td>${p.clan_tag || '-'}</td>
     </tr>
   `).join('');
 }
 
-// Render tag appearances
 function renderTagAppearances(players) {
   tagResultsBody.innerHTML = players.map(p => `
     <tr>
@@ -83,78 +169,109 @@ function renderTagAppearances(players) {
       <td>${p.rank}</td>
       <td>${escapeHtml(p.name)}</td>
       <td>${p.tag}</td>
-      <td>${p.clan_name || '-'}</td>
+      <td>${p.clan_name ? escapeHtml(p.clan_name) : '-'}</td>
       <td>${p.clan_tag || '-'}</td>
     </tr>
   `).join('');
 }
 
-// Clear results
+// --- Clear & Hide Functions ---
+// (These remain unchanged)
 function clearSeasonResults() {
-  resultsBody.innerHTML = '';
+  resultsBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">Select a year and month, then click "Load Season".</td></tr>';
   statusEl.textContent = '';
-  resultsTable.style.display = 'none';
-}
-function clearTagResults() {
-  tagResultsBody.innerHTML = '';
-  tagStatusEl.textContent = '';
-  tagResultsTable.style.display = 'none';
+  resultsTableWrapper.style.display = 'block'; 
 }
 
-// Load season
+function clearTagResults() {
+  tagResultsBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--muted);">Enter a player tag and click "Search Tag".</td></tr>';
+  tagStatusEl.textContent = '';
+  tagResultsTableWrapper.style.display = 'block'; 
+}
+
+// --- Main Logic ---
+
 async function loadSeason() {
   clearTagResults();
-  resultsTable.style.display = '';
   const season = `${yearSelect.value}-${monthSelect.value}`;
-  statusEl.textContent = `Loading ${season}…`;
+  
+  // Set initial status unless data is coming from cache
+  if (!getCache(`season-${season}`)) {
+    statusEl.textContent = `Loading ${season}...`;
+  }
+  
+  setControlsDisabled(true);
 
   const players = await fetchSeasonData(season);
-  if (!players.length) statusEl.textContent = `No data for ${season}`;
-  else statusEl.textContent = `Showing ${players.length} players for ${season}`;
+  setControlsDisabled(false);
 
-  renderSeason(players);
+  // If status message already includes '(from cache)', don't overwrite it here
+  if (!statusEl.textContent.includes('(from cache)')) {
+      if (!players.length) {
+          statusEl.textContent = `🚫 No data found for ${season}.`;
+          resultsBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--muted);">No data found for ${season}.</td></tr>`;
+      } else {
+          statusEl.textContent = `✅ Showing top ${players.length} players for ${season}.`;
+          renderSeason(players);
+      }
+  } else {
+      renderSeason(players);
+  }
 }
 
-// Search by tag
 async function searchTag() {
   clearSeasonResults();
-  tagResultsTable.style.display = '';
-  const tag = (tagInput.value || '').trim().toUpperCase();
-  if (!tag) { tagStatusEl.textContent = 'Enter valid tag'; return; }
-  tagStatusEl.textContent = `Searching ${tag}…`;
+  let tag = (tagInput.value || '').trim().toUpperCase();
+  tag = tag.startsWith('#') ? tag : `#${tag}`;
+  tagInput.value = tag; 
 
-  const { data, error } = await supabase
-    .from('players')
-    .select('*')
-    .eq('tag', tag)
-    .order('season', { ascending: true });
-
-  if (error) {
-    console.error(error);
-    tagStatusEl.textContent = 'Error fetching data';
-    return;
+  if (tag.length < 4) { 
+    tagStatusEl.textContent = 'Enter a valid player tag (e.g., #ABC123).'; 
+    return; 
+  }
+  
+  // Set initial status unless data is coming from cache
+  if (!getCache(`tag-${tag}`)) {
+      tagStatusEl.textContent = `Searching ${tag}...`;
   }
 
-  renderTagAppearances(data);
-  tagStatusEl.textContent = `Found ${data.length} appearance(s) for ${tag}`;
+  setControlsDisabled(true);
+
+  const data = await fetchTagData(tag);
+  setControlsDisabled(false);
+
+  // If status message already includes '(from cache)', don't overwrite it here
+  if (!tagStatusEl.textContent.includes('(from cache)')) {
+      if (!data.length) {
+          tagStatusEl.textContent = `❌ No season appearances found for ${tag}.`;
+          tagResultsBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--muted);">No appearances found for ${tag}.</td></tr>`;
+      } else {
+          tagStatusEl.textContent = `✅ Found ${data.length} appearance(s) for ${tag}.`;
+          renderTagAppearances(data);
+      }
+  } else {
+      renderTagAppearances(data);
+  }
 }
 
-// Normalize tag (optional)
-function normalizeTag(input) {
-  let tag = (input || '').trim().toUpperCase();
-  return tag.startsWith('#') ? tag : `#${tag}`;
+// --- Initialization ---
+
+function init() {
+  populateYearSelect();
+  populateMonthSelect();
+
+  loadBtn.addEventListener('click', loadSeason);
+  tagSearchBtn.addEventListener('click', searchTag);
+  tagInput.addEventListener('keydown', e => { if(e.key==='Enter') searchTag(); });
+
+  // Set dropdowns to the current month/year
+  const now = new Date();
+  yearSelect.value = now.getFullYear();
+  monthSelect.value = String(now.getMonth() + 1).padStart(2, '0');
+  
+  // Set initial empty states with instructions
+  clearSeasonResults();
+  clearTagResults();
 }
 
-// Initialize
-populateYearSelect();
-populateMonthSelect();
-loadBtn.addEventListener('click', loadSeason);
-tagSearchBtn.addEventListener('click', searchTag);
-tagInput.addEventListener('keydown', e => { if(e.key==='Enter') searchTag(); });
-
-// Auto-load previous month
-const now = new Date();
-const prevMonth = new Date(now.getFullYear(), now.getMonth()-1,1);
-yearSelect.value = prevMonth.getFullYear();
-monthSelect.value = String(prevMonth.getMonth()+1).padStart(2,'0');
-loadSeason();
+init();
