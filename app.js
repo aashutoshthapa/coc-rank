@@ -1,6 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { inject } from "@vercel/analytics"
-inject()
+
 
 // Supabase setup
 const supabaseUrl = 'https://pikwjrgfrqxrklvswvzg.supabase.co';
@@ -21,12 +20,8 @@ const tagStatusEl = document.getElementById('tagStatus');
 const tagResultsBody = document.getElementById('tagResultsBody');
 const tagResultsTableWrapper = tagResultsBody.closest('.table-wrapper'); 
 
-// Caching constant (5 minutes)
-const CACHE_LIFETIME_MS = 300000; 
-
 // --- Utility Functions ---
 
-// Escape HTML
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g,'&amp;')
@@ -36,34 +31,7 @@ function escapeHtml(str) {
     .replace(/'/g,'&#39;');
 }
 
-// Get cached data if it hasn't expired
-function getCache(key) {
-  const item = localStorage.getItem(key);
-  if (!item) return null;
-
-  try {
-    const { timestamp, data } = JSON.parse(item);
-    // Check if the cache is older than CACHE_LIFETIME_MS
-    if (Date.now() - timestamp < CACHE_LIFETIME_MS) {
-      return data;
-    }
-  } catch (e) {
-    console.error("Error parsing cache:", e);
-    localStorage.removeItem(key); // Clear corrupted cache
-  }
-  return null;
-}
-
-// Store data in cache with a timestamp
-function setCache(key, data) {
-  const item = JSON.stringify({
-    timestamp: Date.now(),
-    data: data,
-  });
-  localStorage.setItem(key, item);
-}
-
-// Disable/Enable controls and show loading spinner
+// Disable/Enable buttons during load (with loading spinner UX)
 function setControlsDisabled(disabled) {
   loadBtn.disabled = disabled;
   tagSearchBtn.disabled = disabled;
@@ -71,7 +39,6 @@ function setControlsDisabled(disabled) {
   monthSelect.disabled = disabled;
   tagInput.disabled = disabled;
   
-  // Toggle loading class for spinner
   loadBtn.classList.toggle('loading', disabled);
   tagSearchBtn.classList.toggle('loading', disabled);
 }
@@ -96,24 +63,15 @@ function populateMonthSelect() {
   });
 }
 
-// --- Data Fetching (CONSOLIDATED & IMPROVED) ---
+// --- Data Fetching ---
 
 async function fetchSeasonData(season) {
-  const cacheKey = `season-${season}`;
-  const cachedData = getCache(cacheKey);
-
-  if (cachedData) {
-    // If cached, update status immediately and return data
-    statusEl.textContent = `✅ Showing ${cachedData.length} players for ${season} (from cache)`;
-    return cachedData;
-  }
-  
   const { data, error } = await supabase
     .from('players')
     .select('*')
     .eq('season', season)
     .order('rank', { ascending: true })
-    .limit(1000); // Added limit for safety
+    .limit(1000);
 
   if (error) {
     console.error(error);
@@ -121,26 +79,16 @@ async function fetchSeasonData(season) {
     return [];
   }
   
-  if (data) setCache(cacheKey, data); // Store successful fetch
   return data || [];
 }
 
 async function fetchTagData(tag) {
-  const cacheKey = `tag-${tag}`;
-  const cachedData = getCache(cacheKey);
-
-  if (cachedData) {
-    // If cached, update status immediately and return data
-    tagStatusEl.textContent = `✅ Found ${cachedData.length} appearance(s) for ${tag} (from cache)`;
-    return cachedData;
-  }
-  
   const { data, error } = await supabase
     .from('players')
     .select('*')
     .eq('tag', tag)
     .order('season', { ascending: true })
-    .limit(1000); // Added limit for safety
+    .limit(1000);
 
   if (error) {
     console.error(error);
@@ -148,7 +96,6 @@ async function fetchTagData(tag) {
     return [];
   }
   
-  if (data) setCache(cacheKey, data); // Store successful fetch
   return data || [];
 }
 
@@ -164,6 +111,7 @@ function renderSeason(players) {
       <td>${p.clan_tag || '-'}</td>
     </tr>
   `).join('');
+  resultsTableWrapper.style.display = 'block';
 }
 
 function renderTagAppearances(players) {
@@ -177,20 +125,21 @@ function renderTagAppearances(players) {
       <td>${p.clan_tag || '-'}</td>
     </tr>
   `).join('');
+  tagResultsTableWrapper.style.display = 'block';
 }
 
-// --- Clear & Hide Functions ---
+// --- Clear & Hide ---
 
 function clearSeasonResults() {
-  resultsBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">Select a year and month, then click "Load Season".</td></tr>';
+  resultsBody.innerHTML = '';
   statusEl.textContent = '';
-  resultsTableWrapper.style.display = 'block'; 
+  resultsTableWrapper.style.display = 'none';
 }
 
 function clearTagResults() {
-  tagResultsBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--muted);">Enter a player tag and click "Search Tag".</td></tr>';
+  tagResultsBody.innerHTML = '';
   tagStatusEl.textContent = '';
-  tagResultsTableWrapper.style.display = 'block'; 
+  tagResultsTableWrapper.style.display = 'none';
 }
 
 // --- Main Logic ---
@@ -198,28 +147,18 @@ function clearTagResults() {
 async function loadSeason() {
   clearTagResults();
   const season = `${yearSelect.value}-${monthSelect.value}`;
-  
-  // Set initial loading status only if cache isn't available
-  if (!getCache(`season-${season}`)) {
-    statusEl.textContent = `Loading ${season}...`;
-  }
+  statusEl.textContent = `Loading ${season}...`;
   
   setControlsDisabled(true);
-
   const players = await fetchSeasonData(season);
   setControlsDisabled(false);
 
-  // Update status and render if it wasn't already updated by the cache hit
-  if (!statusEl.textContent.includes('(from cache)')) {
-      if (!players.length) {
-          statusEl.textContent = `🚫 No data found for ${season}.`;
-          resultsBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--muted);">No data found for ${season}.</td></tr>`;
-      } else {
-          statusEl.textContent = `✅ Showing top ${players.length} players for ${season}.`;
-          renderSeason(players);
-      }
+  if (!players.length) {
+    statusEl.textContent = `🚫 No data found for ${season}.`;
+    resultsTableWrapper.style.display = 'none';
   } else {
-      renderSeason(players);
+    statusEl.textContent = `✅ Showing top ${players.length} players for ${season}.`;
+    renderSeason(players);
   }
 }
 
@@ -227,34 +166,24 @@ async function searchTag() {
   clearSeasonResults();
   let tag = (tagInput.value || '').trim().toUpperCase();
   tag = tag.startsWith('#') ? tag : `#${tag}`;
-  tagInput.value = tag; 
+  tagInput.value = tag;
 
   if (tag.length < 4) { 
     tagStatusEl.textContent = 'Enter a valid player tag (e.g., #ABC123).'; 
     return; 
   }
-  
-  // Set initial loading status only if cache isn't available
-  if (!getCache(`tag-${tag}`)) {
-      tagStatusEl.textContent = `Searching ${tag}...`;
-  }
 
+  tagStatusEl.textContent = `Searching ${tag}...`;
   setControlsDisabled(true);
-
   const data = await fetchTagData(tag);
   setControlsDisabled(false);
 
-  // Update status and render if it wasn't already updated by the cache hit
-  if (!tagStatusEl.textContent.includes('(from cache)')) {
-      if (!data.length) {
-          tagStatusEl.textContent = `❌ No season appearances found for ${tag}.`;
-          tagResultsBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--muted);">No appearances found for ${tag}.</td></tr>`;
-      } else {
-          tagStatusEl.textContent = `✅ Found ${data.length} appearance(s) for ${tag}.`;
-          renderTagAppearances(data);
-      }
+  if (!data.length) {
+    tagStatusEl.textContent = `❌ No season appearances found for ${tag}.`;
+    tagResultsTableWrapper.style.display = 'none';
   } else {
-      renderTagAppearances(data);
+    tagStatusEl.textContent = `✅ Found ${data.length} appearance(s) for ${tag}.`;
+    renderTagAppearances(data);
   }
 }
 
@@ -268,16 +197,14 @@ function init() {
   tagSearchBtn.addEventListener('click', searchTag);
   tagInput.addEventListener('keydown', e => { if(e.key==='Enter') searchTag(); });
 
-  // Set dropdowns to the current month/year
+  // Set dropdowns to current month/year
   const now = new Date();
   yearSelect.value = now.getFullYear();
   monthSelect.value = String(now.getMonth() + 1).padStart(2, '0');
-  
-  // Set initial empty states with instructions
+
+  // Hide tables initially
   clearSeasonResults();
   clearTagResults();
-
-  // IMPORTANT: No auto-load here. User must click the button.
 }
 
 init();
